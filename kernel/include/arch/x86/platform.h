@@ -1,0 +1,9 @@
+#ifndef PLATFORM_H
+#define PLATFORM_H
+
+#define STACK_SIZE 0x4000
+
+#define VIRTUAL_BASE 0xC0000000
+#define KERNEL_PAGE (VIRTUAL_BASE >> 22)
+
+#endif
