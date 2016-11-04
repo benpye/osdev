@@ -11,6 +11,12 @@
 #ifndef ASM_FILE
 #define PA_TO_VA(addr) ((void *) (PHYS_TO_VIRT((int)addr)))
 #define VA_TO_PA(addr) ((void *) (VIRT_TO_PHYS((int)addr)))
+
+typedef enum
+{
+    Success,
+    Fail
+} Status;
 #endif
 
 #endif

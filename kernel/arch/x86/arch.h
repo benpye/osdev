@@ -1,5 +1,5 @@
-#ifndef ARCH_H
-#define ARCH_H
+#ifndef ARCH_ARCH_H
+#define ARCH_ARCH_H
 
 // Comments reference the Intel Manual, taken from Volume 3A, Section 2.5
 

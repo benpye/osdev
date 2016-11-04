@@ -1,7 +1,9 @@
 #define ASM_FILE
-#include "multiboot.h"
-#include <arch.h>
+
 #include <kernel.h>
+#include "arch.h"
+
+#include "multiboot.h"
 
 #define MB_MAGIC MULTIBOOT_HEADER_MAGIC
 
@@ -17,11 +19,12 @@ stack:
 
 .section .data
 .align 4096
-INIT_PAGE_DIRECTORY:
-.long (PD_P | PD_RW | PD_PS)
-.fill (KERNEL_PAGE - 1), 4, 0
-.long (PD_P | PD_RW | PD_PS)
-.fill (1024 - KERNEL_PAGE - 1), 4, 0
+.global MmPageDirectory
+MmPageDirectory:
+    .long (PD_P | PD_RW | PD_PS)
+    .fill (KERNEL_PAGE - 1), 4, 0
+    .long (PD_P | PD_RW | PD_PS)
+    .fill (1024 - KERNEL_PAGE - 1), 4, 0
 
 .section .mb_header
 .align 4
@@ -35,7 +38,7 @@ MB_HEADER:
 .global MultibootEntry
 .type MultibootEntry, @function
 _MultibootEntry:
-    mov $(VIRT_TO_PHYS(INIT_PAGE_DIRECTORY)), %ecx
+    mov $(VIRT_TO_PHYS(MmPageDirectory)), %ecx
     mov %ecx, %cr3
 
     mov %cr4, %ecx
@@ -50,7 +53,7 @@ _MultibootEntry:
     jmp *%ecx
 
 HigherHalf:
-    movl $0, INIT_PAGE_DIRECTORY
+    movl $0, MmPageDirectory
     invlpg 0
 
     mov $(stack + STACK_SIZE), %esp
