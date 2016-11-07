@@ -4,6 +4,6 @@
 void *MmAllocatePhysicalPage();
 void MmFreePhysicalPage(void *pAddr);
 void MmReservePhysicalPage(void *pAddr);
-uint32_t MmGetFreePhysicalPages();
+unsigned int MmGetFreePhysicalPages();
 
 #endif

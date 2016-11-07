@@ -6,7 +6,7 @@
 #include <rtl/debug.h>
 
 uint8_t MmPfaBitmap[(PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8] = { 0 };
-uint32_t MmPfaFreePages = 0;
+unsigned int MmPfaFreePages = 0;
 
 void *MmAllocatePhysicalPage()
 {
@@ -52,7 +52,7 @@ void MmReservePhysicalPage(void *pAddr)
     MmPfaFreePages--;
 }
 
-uint32_t MmGetFreePhysicalPages()
+unsigned int MmGetFreePhysicalPages()
 {
     return MmPfaFreePages;
 }
