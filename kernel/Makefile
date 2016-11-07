@@ -20,7 +20,9 @@ OBJ = $(OBJ_DIR)/arch/x86/entry.o \
       $(OBJ_DIR)/arch/x86/boot.o \
       $(OBJ_DIR)/arch/x86/mem.o \
       $(OBJ_DIR)/arch/x86/serial.o \
-      $(OBJ_DIR)/rtl/debug.o
+      $(OBJ_DIR)/rtl/debug.o \
+      $(OBJ_DIR)/rtl/memory.o \
+      $(OBJ_DIR)/mm/pfa.o
 
 all: $(KERNEL)
 

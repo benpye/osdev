@@ -1,6 +1,9 @@
 #ifndef ARCH_MEM_H
 #define ARCH_MEM_H
 
+#define NUM_PDE 1024
+#define NUM_PTE 1024
+
 typedef struct
 {
     unsigned int Present : 1;
@@ -15,5 +18,18 @@ typedef struct
     unsigned int Ignored : 3;
     unsigned int Address : 20;
 } __attribute__((packed)) PageTable;
+
+typedef enum
+{
+    PAGE_FLAGS_NONE = 0,
+    PAGE_FLAGS_WRITE,
+    PAGE_FLAGS_USER
+} PageFlags;
+
+void MmInitVirtualMemoryManager();
+void MmSetPageDirectory(PageTable *pageDirectory);
+PageTable *MmGetPageTable(unsigned int directory);
+void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags);
+void MmUnmapKernelPage(void *vAddr);
 
 #endif

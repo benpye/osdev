@@ -65,7 +65,7 @@ void RtlDebugPrintChar(char c)
 void RtlDebugPrintInt(int val, int base, int sign)
 {
     static char tmp[33] = {0};
-    int i = 33;
+    int i = 31;
     unsigned int uval = val;
 
     if(val < 0 && base == 10 && sign)
@@ -77,7 +77,8 @@ void RtlDebugPrintInt(int val, int base, int sign)
     }
 
     if(val < 0 && base == 10 && sign) RtlDebugPrintChar('-');
-    RtlDebugPrintString(&tmp[i+1]);
+    if(val == 0) RtlDebugPrintChar('0');
+    else RtlDebugPrintString(&tmp[i+1]);
 }
 
 void RtlDebugPrintString(const char *str)

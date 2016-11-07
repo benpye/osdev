@@ -15,12 +15,12 @@
 .section .bss
 .align 16
 stack:
-.skip STACK_SIZE
+.skip KERNEL_STACK_SIZE
 
 .section .data
 .align 4096
-.global MmPageDirectory
-MmPageDirectory:
+.global MmBootPageDirectory
+MmBootPageDirectory:
     .long (PD_P | PD_RW | PD_PS)
     .fill (KERNEL_PAGE - 1), 4, 0
     .long (PD_P | PD_RW | PD_PS)
@@ -38,7 +38,7 @@ MB_HEADER:
 .global MultibootEntry
 .type MultibootEntry, @function
 _MultibootEntry:
-    mov $(VIRT_TO_PHYS(MmPageDirectory)), %ecx
+    mov $(VIRT_TO_PHYS(MmBootPageDirectory)), %ecx
     mov %ecx, %cr3
 
     mov %cr4, %ecx
@@ -53,10 +53,10 @@ _MultibootEntry:
     jmp *%ecx
 
 HigherHalf:
-    movl $0, MmPageDirectory
+    movl $0, MmBootPageDirectory
     invlpg 0
 
-    mov $(stack + STACK_SIZE), %esp
+    mov $(stack + KERNEL_STACK_SIZE), %esp
 
     push %ebx
     push %eax
