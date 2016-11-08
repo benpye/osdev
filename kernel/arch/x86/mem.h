@@ -31,5 +31,6 @@ void MmSetPageDirectory(PageTable *pageDirectory);
 PageTable *MmGetPageTable(unsigned int directory);
 void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags);
 void MmUnmapKernelPage(void *vAddr);
+void *MmWalkPageTable(void *vAddr);
 
 #endif

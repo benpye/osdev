@@ -112,4 +112,44 @@ void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags)
 
 void MmUnmapKernelPage(void *vAddr)
 {
+    RtlDebugAssert(((int)vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
+
+    uint32_t virt = (uint32_t)vAddr;
+
+    // Directory is top 10 bits, table is next 10
+    int directory = virt >> 22;
+    int table = (virt >> 12) & 0x3FF;
+
+    RtlDebugAssert(directory < (NUM_PDE - 1), "The top entry in the directory cannot have any table unmapped");
+
+    PageTable *pde = &MmPageDirectory[directory];
+
+    RtlDebugAssert(pde->Present, "PDE containing PT must be present");
+
+    PageTable *pt = MmGetPageTable(directory);
+    PageTable *pte = &pt[table];
+
+    RtlDebugAssert(pte->Present, "PTE to unmap must be present");
+
+    pte->Present = 0;
+}
+
+void *MmWalkPageTable(void *vAddr)
+{
+    uint32_t virt = (uint32_t)vAddr;
+
+    // Directory is top 10 bits, table is next 10
+    int directory = virt >> 22;
+    int table = (virt >> 12) & 0x3FF;
+
+    PageTable *pde = &MmPageDirectory[directory];
+
+    RtlDebugAssert(pde->Present, "PDE containing PT must be present");
+
+    PageTable *pt = MmGetPageTable(directory);
+    PageTable *pte = &pt[table];
+
+    RtlDebugAssert(pte->Present, "PTE to walk must be present");
+
+    return (void *)((pte->Address << 12) | (virt & (PAGE_SIZE - 1)));
 }

@@ -54,6 +54,11 @@ void ArStart(uint32_t mbMagic, multiboot_info_t *mbInfo)
         ::: "%eax");
 
     MmMapKernelPage(VA_TO_PA((void*)((int)(&ArStart) & ~(PAGE_SIZE - 1))), (void*)0, PAGE_FLAGS_NONE);
+
+    RtlDebugPrint("0x0 == 0x%x\n", MmWalkPageTable((void*)0x0));
+    RtlDebugPrint("0xc0000000 == 0x%x\n", MmWalkPageTable((void*)0xc0000000));
+
+
     while(1){ }
 
     RtlDebugAssert(0, "Kernel ended!");
