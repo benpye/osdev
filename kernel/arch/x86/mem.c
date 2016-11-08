@@ -18,26 +18,28 @@ void MmInitVirtualMemoryManager()
 {
     RtlZeroMemory(MmPageDirectory, sizeof(MmPageDirectory));
 
-    for(unsigned int addr = 0; addr < VIRT_TO_PHYS((unsigned int)&KERNEL_END); addr += PAGE_SIZE)
+    for(pa_t addr = 0; addr < V2P((va_t)&KERNEL_END); addr += PAGE_SIZE)
     {
-        MmMapKernelPage((void *)addr, (void *)(addr + KERNEL_VIRTUAL_BASE), PAGE_FLAGS_NONE);
+        RtlDebugAssert(P2V(addr) < (1ULL << 32), "Cannot map to virtual address greater than 2^32 - 1");
+        MmMapKernelPage(addr, P2V(addr), PAGE_FLAGS_WRITE);
     }
 
     MmPageDirectory[NUM_PDE - 1].Present = 1;
     MmPageDirectory[NUM_PDE - 1].Writable = 1;
     MmPageDirectory[NUM_PDE - 1].User = 1;
-    MmPageDirectory[NUM_PDE - 1].Address = (int)VA_TO_PA(&MmPageDirectory) >> 12;
+    MmPageDirectory[NUM_PDE - 1].Address = V2P((va_t)&MmPageDirectory) >> 12;
 
-    MmSetPageDirectory(VA_TO_PA(MmPageDirectory));
+    MmSetPageDirectory(V2P((va_t)&MmPageDirectory));
 
-    MmFreePhysicalPage(VA_TO_PA(MmBootPageDirectory));
+    MmFreePhysicalPage(V2P((va_t)&MmBootPageDirectory));
 
     MmVmmInit = 1;
 }
 
-void MmSetPageDirectory(PageTable *pageDirectory)
+void MmSetPageDirectory(pa_t pageDirectory)
 {
-    asm volatile ("movl %0, %%cr3\n" :: "r"(pageDirectory));
+    RtlDebugAssert(P2V(pageDirectory) < (1ULL << 32), "Do not support PD above 2^32 - 1");
+    asm volatile ("movl %0, %%cr3\n" :: "r"((uint32_t)pageDirectory));
 }
 
 PageTable *MmGetPageTable(unsigned int directory)
@@ -48,21 +50,20 @@ PageTable *MmGetPageTable(unsigned int directory)
     {
         PageTable *pde = &MmPageDirectory[directory];
         RtlDebugAssert(pde->Present && !pde->PageSize, "Can only get page table for present non table PDEs");
-        return (PageTable *)PA_TO_VA(pde->Address << 12);
+        return (PageTable *)P2V(pde->Address << 12);
     }
 }
 
-void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags)
+void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags)
 {
-    RtlDebugAssert(((int)pAddr % PAGE_SIZE) == 0, "Physical address not page aligned");
-    RtlDebugAssert(((int)vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
+    RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Physical address not page aligned");
+    RtlDebugAssert((vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
+    // TODO: Lift restriction (PAE)
+    RtlDebugAssert(pAddr < (1ULL << 32), "Physical addresses greater than 2^32 - 1 not supported")
 
-    uint32_t phys = (uint32_t)pAddr;
-    uint32_t virt = (uint32_t)vAddr;
-
-    // Directory is top 10 bits, table is next 10
-    int directory = virt >> 22;
-    int table = (virt >> 12) & 0x3FF;
+     // Directory is top 10 bits, table is next 10
+    int directory = vAddr >> 22;
+    int table = (vAddr >> 12) & 0x3FF;
 
     RtlDebugAssert(directory < (NUM_PDE - 1), "The top entry in the directory cannot be mapped");
 
@@ -72,7 +73,7 @@ void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags)
 
     if(!pde->Present)
     {
-        int ptPhys = (int)MmAllocatePhysicalPage();
+        pa_t ptPhys = MmAllocatePhysicalPage();
         alloc = 1;
         
         pde->Present = 1;
@@ -107,18 +108,16 @@ void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags)
     pte->PageSize = 0;
     pte->Global = 0;
     pte->Ignored = 0;
-    pte->Address = phys >> 12;
+    pte->Address = pAddr >> 12;
 }
 
-void MmUnmapKernelPage(void *vAddr)
+void MmUnmapKernelPage(va_t vAddr)
 {
-    RtlDebugAssert(((int)vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
-
-    uint32_t virt = (uint32_t)vAddr;
+    RtlDebugAssert((vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
 
     // Directory is top 10 bits, table is next 10
-    int directory = virt >> 22;
-    int table = (virt >> 12) & 0x3FF;
+    int directory = vAddr >> 22;
+    int table = (vAddr >> 12) & 0x3FF;
 
     RtlDebugAssert(directory < (NUM_PDE - 1), "The top entry in the directory cannot have any table unmapped");
 
@@ -134,13 +133,11 @@ void MmUnmapKernelPage(void *vAddr)
     pte->Present = 0;
 }
 
-void *MmWalkPageTable(void *vAddr)
+pa_t MmWalkPageTable(va_t vAddr)
 {
-    uint32_t virt = (uint32_t)vAddr;
-
     // Directory is top 10 bits, table is next 10
-    int directory = virt >> 22;
-    int table = (virt >> 12) & 0x3FF;
+    int directory = vAddr >> 22;
+    int table = (vAddr >> 12) & 0x3FF;
 
     PageTable *pde = &MmPageDirectory[directory];
 
@@ -151,5 +148,5 @@ void *MmWalkPageTable(void *vAddr)
 
     RtlDebugAssert(pte->Present, "PTE to walk must be present");
 
-    return (void *)((pte->Address << 12) | (virt & (PAGE_SIZE - 1)));
+    return (pte->Address << 12) | (vAddr & (PAGE_SIZE - 1));
 }

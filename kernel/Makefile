@@ -7,7 +7,7 @@ LD = ld
 
 INCLUDES = -Iinclude -Iinclude/arch/$(ARCH)
 
-CFLAGS = --target=i686-pc-none-elf -Wall -Werror -g -ffreestanding -std=gnu11 -nostdlib -nostdlibinc -nodefaultlibs $(INCLUDES)
+CFLAGS = --target=i686-pc-none-elf -mno-sse -Wall -Werror -g -ffreestanding -std=gnu11 -nostdlib -nostdlibinc -nodefaultlibs $(INCLUDES)
 LDFLAGS = -m elf_i386 -T arch/$(ARCH)/linker.ld -nostdlib -nostartfiles
 
 KERNEL = boot.elf

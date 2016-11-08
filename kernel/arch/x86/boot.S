@@ -34,11 +34,11 @@ MB_HEADER:
     .long MB_CHECKSUM
 
 .section .text
-.equ MultibootEntry, VIRT_TO_PHYS(_MultibootEntry)
+.equ MultibootEntry, V2P(_MultibootEntry)
 .global MultibootEntry
 .type MultibootEntry, @function
 _MultibootEntry:
-    mov $(VIRT_TO_PHYS(MmBootPageDirectory)), %ecx
+    mov $(V2P(MmBootPageDirectory)), %ecx
     mov %ecx, %cr3
 
     mov %cr4, %ecx

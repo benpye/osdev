@@ -1,6 +1,5 @@
 #include <kernel.h>
 #include <stdint.h>
-#include <stddef.h>
 
 #include <mm/pfa.h>
 #include <rtl/debug.h>
@@ -8,7 +7,7 @@
 uint8_t MmPfaBitmap[(PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8] = { 0 };
 unsigned int MmPfaFreePages = 0;
 
-void *MmAllocatePhysicalPage()
+pa_t MmAllocatePhysicalPage()
 {
     RtlDebugAssert(MmPfaFreePages > 0, "No free physical page");
     for(int i = 0; i < (PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8; i++)
@@ -19,7 +18,7 @@ void *MmAllocatePhysicalPage()
             {
                 if((MmPfaBitmap[i] & (1 << j)) != 0)
                 {
-                    void *pAddr = (void *)(((i * 8) + j) * PAGE_SIZE);
+                    pa_t pAddr = ((i * 8) + j) * PAGE_SIZE;
                     MmReservePhysicalPage(pAddr);
                     return pAddr;
                 }
@@ -27,13 +26,13 @@ void *MmAllocatePhysicalPage()
         }
     }
 
-    return NULL;
+    return 0;
 }
 
-void MmFreePhysicalPage(void *pAddr)
+void MmFreePhysicalPage(pa_t pAddr)
 {
-    RtlDebugAssert(((int)pAddr % PAGE_SIZE) == 0, "Tried to free non aligned page");
-    int page = (int)pAddr / PAGE_SIZE;
+    RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Tried to free non aligned page");
+    int page = pAddr / PAGE_SIZE;
     int entry = page / 8;
     int bit = page % 8;
     RtlDebugAssert((MmPfaBitmap[entry] & (1 << bit)) == 0, "Tried to free free physical page at 0x%x", pAddr);
@@ -41,10 +40,10 @@ void MmFreePhysicalPage(void *pAddr)
     MmPfaFreePages++;
 }
 
-void MmReservePhysicalPage(void *pAddr)
+void MmReservePhysicalPage(pa_t pAddr)
 {
-    RtlDebugAssert(((int)pAddr % PAGE_SIZE) == 0, "Tried to reserve non aligned page");
-    int page = (int)pAddr / PAGE_SIZE;
+    RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Tried to reserve non aligned page");
+    int page = pAddr / PAGE_SIZE;
     int entry = page / 8;
     int bit = page % 8;
     RtlDebugAssert((MmPfaBitmap[entry] & (1 << bit)) != 0, "Tried to reserve reserved physical page at 0x%x", pAddr);

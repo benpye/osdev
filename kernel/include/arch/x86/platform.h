@@ -14,6 +14,9 @@ static inline void ArDebugHalt()
 {
      asm volatile ( "cli\nhlt" : : );
 }
+
+typedef unsigned int va_t;
+typedef unsigned long long pa_t;
 #endif
 
 #endif

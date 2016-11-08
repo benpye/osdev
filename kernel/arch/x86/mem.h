@@ -27,10 +27,10 @@ typedef enum
 } PageFlags;
 
 void MmInitVirtualMemoryManager();
-void MmSetPageDirectory(PageTable *pageDirectory);
+void MmSetPageDirectory(pa_t pageDirectory);
 PageTable *MmGetPageTable(unsigned int directory);
-void MmMapKernelPage(void *pAddr, void *vAddr, PageFlags flags);
-void MmUnmapKernelPage(void *vAddr);
-void *MmWalkPageTable(void *vAddr);
+void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags);
+void MmUnmapKernelPage(va_t vAddr);
+pa_t MmWalkPageTable(va_t vAddr);
 
 #endif
