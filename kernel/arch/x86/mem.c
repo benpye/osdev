@@ -6,6 +6,7 @@
 #include <rtl/debug.h>
 #include <mm/pfa.h>
 
+#include "multiboot.h"
 #include "mem.h"
 
 __attribute__((aligned(PAGE_SIZE))) PageTable MmPageDirectory[1024];
@@ -13,6 +14,29 @@ int MmVmmInit = 0;
 
 extern void *KERNEL_END;
 extern void *MmBootPageDirectory;
+
+void MmInitPhysicalMemoryManager(multiboot_info_t *mbInfo)
+{
+    RtlDebugAssert((mbInfo->flags & MULTIBOOT_INFO_MEM_MAP) != 0, "Requires memory map from bootloader");
+    multiboot_memory_map_t *mmapArray = (multiboot_memory_map_t *)P2V(mbInfo->mmap_addr);
+
+    for(int i = 0; i < mbInfo->mmap_length/sizeof(multiboot_memory_map_t); i++)
+    {
+        if(mmapArray[i].type == MULTIBOOT_MEMORY_AVAILABLE)
+        {
+            pa_t addr = ((pa_t)mmapArray[i].addr_high) << 32 | mmapArray[i].addr_low;
+            pa_t end = addr + (((pa_t)mmapArray[i].len_high) << 32 | mmapArray[i].len_low);
+
+            addr &= ~(PAGE_SIZE - 1);
+
+            for(; addr < end; addr += PAGE_SIZE)
+            {
+                if(addr > V2P((va_t)&KERNEL_END))
+                    MmFreePhysicalPage(addr);
+            }
+        }
+    }
+}
 
 void MmInitVirtualMemoryManager()
 {
@@ -39,7 +63,7 @@ void MmInitVirtualMemoryManager()
 void MmSetPageDirectory(pa_t pageDirectory)
 {
     RtlDebugAssert(P2V(pageDirectory) < (1ULL << 32), "Do not support PD above 2^32 - 1");
-    asm volatile ("movl %0, %%cr3\n" :: "r"((uint32_t)pageDirectory));
+    asm volatile ("movl %0, %%cr3" :: "r"((uint32_t)pageDirectory));
 }
 
 PageTable *MmGetPageTable(unsigned int directory)
@@ -149,4 +173,17 @@ pa_t MmWalkPageTable(va_t vAddr)
     RtlDebugAssert(pte->Present, "PTE to walk must be present");
 
     return (pte->Address << 12) | (vAddr & (PAGE_SIZE - 1));
+}
+
+void MmInvalidatePage(va_t vAddr)
+{
+    asm volatile ("invlpg (%0)" :: "b"(vAddr) : "memory");
+}
+
+void MmInvalidateAll()
+{
+    asm volatile (
+        "movl %%cr3, %%eax\n"
+        "movl %%eax, %%cr3\n"
+        ::: "%eax");
 }

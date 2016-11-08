@@ -64,7 +64,7 @@ void RtlDebugPrintChar(char c)
 
 void RtlDebugPrintInt(int val, int base, int sign)
 {
-    static char tmp[33] = {0};
+    char tmp[33] = {0};
     int i = 31;
     unsigned int uval = val;
 

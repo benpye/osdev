@@ -32,6 +32,7 @@ pa_t MmAllocatePhysicalPage()
 void MmFreePhysicalPage(pa_t pAddr)
 {
     RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Tried to free non aligned page");
+    RtlDebugAssert(pAddr < PHYSICAL_MEMORY_SIZE, "Tried to free page outside physical memory");
     int page = pAddr / PAGE_SIZE;
     int entry = page / 8;
     int bit = page % 8;
@@ -43,6 +44,7 @@ void MmFreePhysicalPage(pa_t pAddr)
 void MmReservePhysicalPage(pa_t pAddr)
 {
     RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Tried to reserve non aligned page");
+    RtlDebugAssert(pAddr < PHYSICAL_MEMORY_SIZE, "Tried to reserve page outside physical memory");
     int page = pAddr / PAGE_SIZE;
     int entry = page / 8;
     int bit = page % 8;

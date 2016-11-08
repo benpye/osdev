@@ -26,11 +26,14 @@ typedef enum
     PAGE_FLAGS_USER
 } PageFlags;
 
+void MmInitPhysicalMemoryManager(multiboot_info_t *mbInfo);
 void MmInitVirtualMemoryManager();
 void MmSetPageDirectory(pa_t pageDirectory);
 PageTable *MmGetPageTable(unsigned int directory);
 void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags);
 void MmUnmapKernelPage(va_t vAddr);
 pa_t MmWalkPageTable(va_t vAddr);
+void MmInvalidatePage(va_t vAddr);
+void MmInvalidateAll();
 
 #endif
