@@ -9,7 +9,8 @@
 #include "multiboot.h"
 #include "mem.h"
 
-__attribute__((aligned(PAGE_SIZE))) PageTable MmPageDirectory[1024];
+__attribute__((aligned(PAGE_SIZE))) PageTable MmKernelPD[NUM_PDE];
+__attribute__((aligned(PAGE_SIZE))) PageTable MmKernelPTs[NUM_KERNEL_PDE - NUM_RESERVED_PDE][NUM_PTE];
 int MmVmmInit = 0;
 
 extern void *KERNEL_END;
@@ -40,20 +41,29 @@ void MmInitPhysicalMemoryManager(multiboot_info_t *mbInfo)
 
 void MmInitVirtualMemoryManager()
 {
-    RtlZeroMemory(MmPageDirectory, sizeof(MmPageDirectory));
+    RtlZeroMemory(MmKernelPD, sizeof(MmKernelPD));
+    RtlZeroMemory(MmKernelPTs, sizeof(MmKernelPTs));
+
+    for(int i = 0; i < NUM_KERNEL_PDE - NUM_RESERVED_PDE; i++)
+    {
+        MmKernelPD[NUM_PDE - NUM_KERNEL_PDE + i - 1].Present = 1;
+        MmKernelPD[NUM_PDE - NUM_KERNEL_PDE + i - 1].Writable = 1;
+        MmKernelPD[NUM_PDE - NUM_KERNEL_PDE + i - 1].User = 1;
+        MmKernelPD[NUM_PDE - NUM_KERNEL_PDE + i - 1].Address = V2P((va_t)&MmKernelPTs[i]) >> 12;
+    }
+
+    MmKernelPD[NUM_PDE - 1].Present = 1;
+    MmKernelPD[NUM_PDE - 1].Writable = 1;
+    MmKernelPD[NUM_PDE - 1].User = 1;
+    MmKernelPD[NUM_PDE - 1].Address = V2P((va_t)&MmKernelPD) >> 12;
 
     for(pa_t addr = 0; addr < V2P((va_t)&KERNEL_END); addr += PAGE_SIZE)
     {
         RtlDebugAssert(P2V(addr) < (1ULL << 32), "Cannot map to virtual address greater than 2^32 - 1");
-        MmMapKernelPage(addr, P2V(addr), PAGE_FLAGS_WRITE);
+        MmMapPage(addr, P2V(addr), PAGE_FLAGS_WRITE);
     }
 
-    MmPageDirectory[NUM_PDE - 1].Present = 1;
-    MmPageDirectory[NUM_PDE - 1].Writable = 1;
-    MmPageDirectory[NUM_PDE - 1].User = 1;
-    MmPageDirectory[NUM_PDE - 1].Address = V2P((va_t)&MmPageDirectory) >> 12;
-
-    MmSetPageDirectory(V2P((va_t)&MmPageDirectory));
+    MmSetPageDirectory(V2P((va_t)&MmKernelPD));
 
     MmFreePhysicalPage(V2P((va_t)&MmBootPageDirectory));
 
@@ -62,23 +72,23 @@ void MmInitVirtualMemoryManager()
 
 void MmSetPageDirectory(pa_t pageDirectory)
 {
-    RtlDebugAssert(P2V(pageDirectory) < (1ULL << 32), "Do not support PD above 2^32 - 1");
+    RtlDebugAssert(pageDirectory < (1ULL << 32), "Do not support PD above 2^32 - 1");
     asm volatile ("movl %0, %%cr3" :: "r"((uint32_t)pageDirectory));
 }
 
 PageTable *MmGetPageTable(unsigned int directory)
 {
     if(MmVmmInit)
-        return (PageTable *)((NUM_PDE - 1) << 22);
+        return &((PageTable *)((NUM_PDE - 1) << 22))[directory * NUM_PTE];
     else
     {
-        PageTable *pde = &MmPageDirectory[directory];
+        PageTable *pde = &MmKernelPD[directory];
         RtlDebugAssert(pde->Present && !pde->PageSize, "Can only get page table for present non table PDEs");
         return (PageTable *)P2V(pde->Address << 12);
     }
 }
 
-void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags)
+void MmMapPage(pa_t pAddr, va_t vAddr, PageFlags flags)
 {
     RtlDebugAssert((pAddr % PAGE_SIZE) == 0, "Physical address not page aligned");
     RtlDebugAssert((vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
@@ -89,14 +99,16 @@ void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags)
     int directory = vAddr >> 22;
     int table = (vAddr >> 12) & 0x3FF;
 
-    RtlDebugAssert(directory < (NUM_PDE - 1), "The top entry in the directory cannot be mapped");
+    RtlDebugAssert(directory < (NUM_PDE - NUM_RESERVED_PDE),
+        "The top %i entries in the directory cannot be mapped", NUM_RESERVED_PDE);
 
-    PageTable *pde = &MmPageDirectory[directory];
+    PageTable *pde = &MmKernelPD[directory];
 
     int alloc = 0;
 
     if(!pde->Present)
     {
+        RtlDebugAssert(directory < NUM_PDE - NUM_KERNEL_PDE, "Kernel PDEs should always be present");
         pa_t ptPhys = MmAllocatePhysicalPage();
         alloc = 1;
         
@@ -135,7 +147,7 @@ void MmMapKernelPage(pa_t pAddr, va_t vAddr, PageFlags flags)
     pte->Address = pAddr >> 12;
 }
 
-void MmUnmapKernelPage(va_t vAddr)
+void MmUnmapPage(va_t vAddr)
 {
     RtlDebugAssert((vAddr % PAGE_SIZE) == 0, "Virtual address not page aligned");
 
@@ -143,9 +155,10 @@ void MmUnmapKernelPage(va_t vAddr)
     int directory = vAddr >> 22;
     int table = (vAddr >> 12) & 0x3FF;
 
-    RtlDebugAssert(directory < (NUM_PDE - 1), "The top entry in the directory cannot have any table unmapped");
+    RtlDebugAssert(directory < (NUM_PDE - NUM_RESERVED_PDE),
+        "The top %i entries in the directory cannot be unmapped", NUM_RESERVED_PDE);
 
-    PageTable *pde = &MmPageDirectory[directory];
+    PageTable *pde = &MmKernelPD[directory];
 
     RtlDebugAssert(pde->Present, "PDE containing PT must be present");
 
@@ -163,7 +176,7 @@ pa_t MmWalkPageTable(va_t vAddr)
     int directory = vAddr >> 22;
     int table = (vAddr >> 12) & 0x3FF;
 
-    PageTable *pde = &MmPageDirectory[directory];
+    PageTable *pde = &MmKernelPD[directory];
 
     RtlDebugAssert(pde->Present, "PDE containing PT must be present");
 

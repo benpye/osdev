@@ -64,8 +64,8 @@ void RtlDebugPrintChar(char c)
 
 void RtlDebugPrintInt(int val, int base, int sign)
 {
-    char tmp[33] = {0};
-    int i = 31;
+    char tmp[sizeof(int) * 8 + 1] = {0};
+    int i = sizeof(int) * 8 - 1;
     unsigned int uval = val;
 
     if(val < 0 && base == 10 && sign)

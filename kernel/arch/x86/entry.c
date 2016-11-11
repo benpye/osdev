@@ -31,10 +31,12 @@ void ArStart(uint32_t mbMagic, multiboot_info_t *mbInfo)
     MmFreePhysicalPage(phys);
     MmFreePhysicalPage(physs);
 
-    MmMapKernelPage(V2P((int)(&ArStart) & ~(PAGE_SIZE - 1)), 0, PAGE_FLAGS_NONE);
+    MmMapPage(V2P((int)(&ArStart) & ~(PAGE_SIZE - 1)), 0, PAGE_FLAGS_NONE);
+    MmMapPage(V2P((int)(&ArStart) & ~(PAGE_SIZE - 1)), 0x800000, PAGE_FLAGS_NONE);
     MmInvalidatePage(0);
 
     RtlDebugPrint("0x0 == 0x%x\n", MmWalkPageTable(0x0));
+    RtlDebugPrint("0x800000 == 0x%x\n", MmWalkPageTable(0x800000));
     RtlDebugPrint("0xc0000000 == 0x%x\n", MmWalkPageTable(0xc0000000));
 
     while(1){ }

@@ -6,11 +6,12 @@
 
 uint8_t MmPfaBitmap[(PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8] = { 0 };
 unsigned int MmPfaFreePages = 0;
+unsigned int MmPfaLastAllocPageEntry = 0;
 
 pa_t MmAllocatePhysicalPage()
 {
     RtlDebugAssert(MmPfaFreePages > 0, "No free physical page");
-    for(int i = 0; i < (PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8; i++)
+    for(int i = MmPfaLastAllocPageEntry; i < (PHYSICAL_MEMORY_SIZE/PAGE_SIZE)/8; i++)
     {
         if(MmPfaBitmap[i] != 0)
         {
@@ -20,6 +21,7 @@ pa_t MmAllocatePhysicalPage()
                 {
                     pa_t pAddr = ((i * 8) + j) * PAGE_SIZE;
                     MmReservePhysicalPage(pAddr);
+                    MmPfaLastAllocPageEntry = i;
                     return pAddr;
                 }
             }
@@ -39,6 +41,9 @@ void MmFreePhysicalPage(pa_t pAddr)
     RtlDebugAssert((MmPfaBitmap[entry] & (1 << bit)) == 0, "Tried to free free physical page at 0x%x", pAddr);
     MmPfaBitmap[entry] |= (1 << bit);
     MmPfaFreePages++;
+    
+    if(entry < MmPfaLastAllocPageEntry)
+        MmPfaLastAllocPageEntry = entry;
 }
 
 void MmReservePhysicalPage(pa_t pAddr)
